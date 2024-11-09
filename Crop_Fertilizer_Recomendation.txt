@@ -1,0 +1,111 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, accuracy_score
+
+# Load the datasets
+crop_data = pd.read_csv('Crop_recommendation.csv')  # Replace with actual path
+fertilizer_data = pd.read_csv('Fertilizer Prediction.csv')  # Replace with actual path
+
+# Drop the soil type column
+fertilizer_data = fertilizer_data.drop(columns=['Soil Type'])
+
+# Encode categorical variables in the crop dataset
+label_encoder_crop = LabelEncoder()
+crop_data['label'] = label_encoder_crop.fit_transform(crop_data['label'])
+
+# Encode categorical variables in the fertilizer dataset
+label_encoder_fertilizer = LabelEncoder()
+fertilizer_data['Fertilizer Name'] = label_encoder_fertilizer.fit_transform(fertilizer_data['Fertilizer Name'])
+
+# Define numerical columns for crop dataset
+numerical_cols_crop = ['N', 'P', 'K', 'temperature', 'humidity', 'ph', 'rainfall']
+
+# Define numerical columns for fertilizer dataset
+numerical_cols_fertilizer = ['Nitrogen', 'Phosphorous', 'Potassium', 'Temparature', 'Humidity ', 'Moisture']
+
+# Split the datasets into train and test sets
+X_crop = crop_data[numerical_cols_crop]
+y_crop = crop_data['label']
+X_crop_train, X_crop_test, y_crop_train, y_crop_test = train_test_split(X_crop, y_crop, test_size=0.2, random_state=42)
+
+X_fertilizer = fertilizer_data[numerical_cols_fertilizer]
+y_fertilizer = fertilizer_data['Fertilizer Name']
+X_fertilizer_train, X_fertilizer_test, y_fertilizer_train, y_fertilizer_test = train_test_split(X_fertilizer, y_fertilizer, test_size=0.2, random_state=42)
+
+# Scale the datasets
+scaler_crop = StandardScaler()
+X_crop_train_scaled = scaler_crop.fit_transform(X_crop_train)
+X_crop_test_scaled = scaler_crop.transform(X_crop_test)
+
+scaler_fertilizer = StandardScaler()
+X_fertilizer_train_scaled = scaler_fertilizer.fit_transform(X_fertilizer_train)
+X_fertilizer_test_scaled = scaler_fertilizer.transform(X_fertilizer_test)
+
+# Train the crop recommendation model
+crop_model = RandomForestClassifier(n_estimators=100, random_state=42)
+crop_model.fit(X_crop_train_scaled, y_crop_train)
+
+# Train the fertilizer recommendation model
+fertilizer_model = RandomForestClassifier(n_estimators=100, random_state=42)
+fertilizer_model.fit(X_fertilizer_train_scaled, y_fertilizer_train)
+
+def get_common_values():
+    # Get user input for common features
+    N = float(input("Enter the value for N (Nitrogen): "))
+    P = float(input("Enter the value for P (Phosphorous): "))
+    K = float(input("Enter the value for K (Potassium): "))
+    temperature = float(input("Enter the value for temperature (°C): "))
+    humidity = float(input("Enter the value for humidity (%): "))
+    return N, P, K, temperature, humidity
+
+def recommend_crop(common_values):
+    N, P, K, temperature, humidity = common_values
+    ph = float(input("Enter the value for ph: "))  # Unique to crop recommendation
+    rainfall = float(input("Enter the value for rainfall (mm): "))  # Unique to crop recommendation
+
+    # Create input data array
+    input_data = pd.DataFrame([[N, P, K, temperature, humidity, ph, rainfall]], columns=numerical_cols_crop)
+    
+    # Scale the input data
+    input_data_scaled = scaler_crop.transform(input_data)
+    
+    # Predict the crop
+    crop_label = crop_model.predict(input_data_scaled)
+    
+    # Convert label to crop name
+    crop_name = label_encoder_crop.inverse_transform(crop_label)[0]
+    return crop_name
+
+def recommend_fertilizer(common_values):
+    N, P, K, temperature, humidity = common_values
+    moisture = float(input("Enter the value for moisture (%): "))  # Unique to fertilizer recommendation
+
+    # Create input data array
+    input_data = pd.DataFrame([[N, P, K, temperature, humidity, moisture]], columns=numerical_cols_fertilizer)
+    
+    # Scale the input data
+    input_data_scaled = scaler_fertilizer.transform(input_data)
+    
+    # Predict the fertilizer
+    fertilizer_label = fertilizer_model.predict(input_data_scaled)
+    
+    # Convert label to fertilizer name
+    fertilizer_name = label_encoder_fertilizer.inverse_transform(fertilizer_label)[0]
+    return fertilizer_name
+
+# Example Usage
+# Get common values for both recommendations
+common_values = get_common_values()
+
+# Call the function to get crop recommendation
+print("Crop Recommendation")
+recommended_crop = recommend_crop(common_values)
+print(f"Recommended Crop: {recommended_crop}")
+
+# Call the function to get fertilizer recommendation
+print("Fertilizer Recommendation")
+recommended_fertilizer = recommend_fertilizer(common_values)
+print(f"Recommended Fertilizer: {recommended_fertilizer}")
